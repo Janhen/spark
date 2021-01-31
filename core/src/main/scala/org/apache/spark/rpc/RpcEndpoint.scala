@@ -29,6 +29,8 @@ private[spark] trait RpcEnvFactory {
 }
 
 /**
+ * 一个消息通信体，可以接收、发送、处理消息
+ *
  * An end point for the RPC that defines what functions to trigger given a message.
  *
  * It is guaranteed that `onStart`, `receive` and `onStop` will be called in sequence.
@@ -46,11 +48,17 @@ private[spark] trait RpcEnvFactory {
 private[spark] trait RpcEndpoint {
 
   /**
+   * 当前RpcEndpoint所注册的[[RpcEnv]]
+   *
    * The [[RpcEnv]] that this [[RpcEndpoint]] is registered to.
    */
   val rpcEnv: RpcEnv
 
   /**
+   * 当前[[RpcEndpoint]]的代理，当`onStart`方法被调用时`self`生效，当
+   * `onStop`被调用时，`self`变成null
+   *
+   *
    * The [[RpcEndpointRef]] of this [[RpcEndpoint]]. `self` will become valid when `onStart` is
    * called. And `self` will become `null` when `onStop` is called.
    *
@@ -63,6 +71,9 @@ private[spark] trait RpcEndpoint {
   }
 
   /**
+   * 接收由RpcEndpointRef.send方法发送的消息，该类消息不需
+   * 要进行响应消息（Reply），而只是在RpcEndpoint端进行处理
+   *
    * Process messages from `RpcEndpointRef.send` or `RpcCallContext.reply`. If receiving a
    * unmatched message, `SparkException` will be thrown and sent to `onError`.
    */
@@ -71,6 +82,9 @@ private[spark] trait RpcEndpoint {
   }
 
   /**
+   * 接收由RpcEndpointRef.ask发送的消息，
+   * RpcEndpoint端处理完消息后，需要给调用RpcEndpointRef.ask的通信端响应消息
+   *
    * Process messages from `RpcEndpointRef.ask`. If receiving a unmatched message,
    * `SparkException` will be thrown and sent to `onError`.
    */
@@ -109,6 +123,8 @@ private[spark] trait RpcEndpoint {
   }
 
   /**
+   * 在接收任务消息前调用主要用来执行初始化
+   *
    * Invoked before [[RpcEndpoint]] starts to handle any message.
    */
   def onStart(): Unit = {

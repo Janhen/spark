@@ -31,6 +31,8 @@ import org.apache.spark.rpc._
 import org.apache.spark.util.ThreadUtils
 
 /**
+ * 消息分发器
+ *
  * A message dispatcher, responsible for routing RPC messages to the appropriate endpoint(s).
  *
  * @param numUsableCores Number of CPU cores allocated to the process, for sizing the thread pool.

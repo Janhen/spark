@@ -84,6 +84,12 @@ private[netty] case class RpcOutboxMessage(
 
 }
 
+/**
+ * 指令消息发件箱
+ *
+ * 一个远程端点对应一个发件箱，当消息放入Outbox后，紧接着将消息通过TransportClient 发送出去
+ * TransportClient，Netty通信客户端。根据OutBox
+ */
 private[netty] class Outbox(nettyEnv: NettyRpcEnv, val address: RpcAddress) {
 
   outbox => // Give this an alias so we can use it more clearly in closures.

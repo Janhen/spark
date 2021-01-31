@@ -52,6 +52,10 @@ private[netty] case class RemoteProcessConnectionError(cause: Throwable, remoteA
   extends InboxMessage
 
 /**
+ * 指令消息收件箱
+ *
+ * 一个本地端点对应一个收件箱
+ *
  * An inbox that stores messages for an [[RpcEndpoint]] and posts messages to it thread-safely.
  */
 private[netty] class Inbox(

@@ -28,6 +28,8 @@ import org.apache.spark.util.RpcUtils
 
 
 /**
+ * RPC 通信环境
+ *
  * A RpcEnv implementation must have a [[RpcEnvFactory]] implementation with an empty constructor
  * so that it can be created via Reflection.
  */
@@ -84,6 +86,8 @@ private[spark] abstract class RpcEnv(conf: SparkConf) {
   def address: RpcAddress
 
   /**
+   * RpcEndpoint 向 RpcEnv 注册
+   *
    * Register a [[RpcEndpoint]] with a name and return its [[RpcEndpointRef]]. [[RpcEnv]] does not
    * guarantee thread-safety.
    */
@@ -102,6 +106,8 @@ private[spark] abstract class RpcEnv(conf: SparkConf) {
   }
 
   /**
+   * 根据参数信息，从 RpcEnv 中获得一个远程的RpcEndpoint
+   *
    * Retrieve the [[RpcEndpointRef]] represented by `address` and `endpointName`.
    * This is a blocking action.
    */

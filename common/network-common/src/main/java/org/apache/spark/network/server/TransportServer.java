@@ -40,6 +40,9 @@ import org.apache.spark.network.TransportContext;
 import org.apache.spark.network.util.*;
 
 /**
+ * Netty通信服务端。一个RPC端点一个TransportServer，接
+ * 收远程消息后调用Dispatcher分发消息至对应收发件箱
+ *
  * Server for the efficient, low-level streaming service.
  */
 public class TransportServer implements Closeable {
