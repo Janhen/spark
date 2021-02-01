@@ -189,22 +189,29 @@ class SparkContext(config: SparkConf) extends Logging {
    | constructor is still running is safe.                                                 |
    * ------------------------------------------------------------------------------------- */
 
+  // !..
   private var _conf: SparkConf = _
   private var _eventLogDir: Option[URI] = None
   private var _eventLogCodec: Option[String] = None
+  // 监听 Spark 内部的消息
   private var _listenerBus: LiveListenerBus = _
+  // !构建 Spark 整个运行环境，Driver, Executor 都依赖次进行计算 ...
   private var _env: SparkEnv = _
   private var _statusTracker: SparkStatusTracker = _
   private var _progressBar: Option[ConsoleProgressBar] = None
+  // !有 UI
   private var _ui: Option[SparkUI] = None
   private var _hadoopConfiguration: Configuration = _
   private var _executorMemory: Int = _
   private var _schedulerBackend: SchedulerBackend = _
+  // !重要组件, 对应底层的调度器
   private var _taskScheduler: TaskScheduler = _
   private var _heartbeatReceiver: RpcEndpointRef = _
+  // !DAG 调度器，将 Job 划分为不同的 Stage，相对 TaskScheduler 更高层的调度
   @volatile private var _dagScheduler: DAGScheduler = _
   private var _applicationId: String = _
   private var _applicationAttemptId: Option[String] = None
+  // 时间监听
   private var _eventLogger: Option[EventLoggingListener] = None
   private var _executorAllocationManager: Option[ExecutorAllocationManager] = None
   private var _cleaner: Option[ContextCleaner] = None
@@ -292,6 +299,7 @@ class SparkContext(config: SparkConf) extends Logging {
   // Set SPARK_USER for user who is running SparkContext.
   val sparkUser = Utils.getCurrentUserName()
 
+  // !用于对接不同的资源管理系统
   private[spark] def schedulerBackend: SchedulerBackend = _schedulerBackend
 
   private[spark] def taskScheduler: TaskScheduler = _taskScheduler

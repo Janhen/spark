@@ -34,6 +34,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * 网络工具类
+ *
  * General utilities available in the network package. Many of these are sourced from Spark's
  * own Utils, just accessible within this package.
  */

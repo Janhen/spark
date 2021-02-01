@@ -35,6 +35,8 @@ private[deploy] object DeployMessages {
   // Worker to Master
 
   /**
+   * 消息通信使用 Case Class(多例的)
+   *
    * @param id the worker id
    * @param host the worker host
    * @param port the worker post
@@ -104,6 +106,7 @@ private[deploy] object DeployMessages {
 
   case class RegisterWorkerFailed(message: String) extends DeployMessage with RegisterWorkerResponse
 
+  // CASE Object 单例的，无参数
   case object MasterInStandby extends DeployMessage with RegisterWorkerResponse
 
   case class ReconnectWorker(masterUrl: String) extends DeployMessage

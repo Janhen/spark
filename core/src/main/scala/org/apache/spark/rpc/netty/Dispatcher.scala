@@ -33,6 +33,10 @@ import org.apache.spark.util.ThreadUtils
 /**
  * 消息分发器
  *
+ * 针对RpcEndpoint发送/接收到的消息，分发至对应
+ * 的指令收件箱/发件箱。如果指令接收方是自己存入收件箱，如果指令接收方为
+ * 非自身端点，则放入发件箱
+ *
  * A message dispatcher, responsible for routing RPC messages to the appropriate endpoint(s).
  *
  * @param numUsableCores Number of CPU cores allocated to the process, for sizing the thread pool.

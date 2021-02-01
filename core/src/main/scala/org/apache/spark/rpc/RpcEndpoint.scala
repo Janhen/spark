@@ -132,6 +132,8 @@ private[spark] trait RpcEndpoint {
   }
 
   /**
+   * 相应的处理操作
+   *
    * Invoked when [[RpcEndpoint]] is stopping. `self` will be `null` in this method and you cannot
    * use it to send or ask messages.
    */

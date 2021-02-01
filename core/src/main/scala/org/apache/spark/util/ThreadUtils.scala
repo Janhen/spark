@@ -31,6 +31,9 @@ import scala.util.control.NonFatal
 
 import org.apache.spark.SparkException
 
+/**
+ * 线程工具类
+ */
 private[spark] object ThreadUtils {
 
   private val sameThreadExecutionContext =

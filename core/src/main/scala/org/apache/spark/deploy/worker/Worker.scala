@@ -60,6 +60,7 @@ private[deploy] class Worker(
   Utils.checkHost(host)
   assert (port > 0)
 
+  // 线程池管理转发消息的
   // A scheduled executor used to send messages at the specified time.
   private val forwordMessageScheduler =
     ThreadUtils.newDaemonSingleThreadScheduledExecutor("worker-forward-message-scheduler")
@@ -74,6 +75,7 @@ private[deploy] class Worker(
   // Send a heartbeat every (heartbeat timeout) / 4 milliseconds
   private val HEARTBEAT_MILLIS = conf.getLong("spark.worker.timeout", 60) * 1000 / 4
 
+  // Worker 进行注册重启的次数，找 Master 进行注册
   // Model retries to connect to the master, after Hadoop's model.
   // The first six attempts to reconnect are in shorter intervals (between 5 and 15 seconds)
   // Afterwards, the next 10 attempts are between 30 and 90 seconds.
@@ -214,8 +216,10 @@ private[deploy] class Worker(
     webUi.bind()
 
     workerWebUiUrl = s"http://$publicAddress:${webUi.boundPort}"
+    // 注册到 Master 上
     registerWithMaster()
 
+    // 测量系统注册
     metricsSystem.registerSource(workerSource)
     metricsSystem.start()
     // Attach the worker metrics servlet handler to the web ui after the metrics system is started.
@@ -250,6 +254,7 @@ private[deploy] class Worker(
         override def run(): Unit = {
           try {
             logInfo("Connecting to master " + masterAddress + "...")
+            // 获取 Master 的引用，注册到 Master 上
             val masterEndpoint = rpcEnv.setupEndpointRef(masterAddress, Master.ENDPOINT_NAME)
             sendRegisterMessageToMaster(masterEndpoint)
           } catch {
@@ -360,8 +365,10 @@ private[deploy] class Worker(
     registrationRetryTimer match {
       case None =>
         registered = false
+        // 向所有的 Master 去注册
         registerMasterFutures = tryRegisterAllMasters()
         connectionAttemptCount = 0
+        // 线程池去尝试注册
         registrationRetryTimer = Some(forwordMessageScheduler.scheduleAtFixedRate(
           new Runnable {
             override def run(): Unit = Utils.tryLogNonFatalError {
@@ -388,11 +395,12 @@ private[deploy] class Worker(
   }
 
   private def sendRegisterMessageToMaster(masterEndpoint: RpcEndpointRef): Unit = {
+    // 通过 send 方式发送，对应在 Master 的 receive 进行处理
     masterEndpoint.send(RegisterWorker(
       workerId,
       host,
       port,
-      self,
+      self,  // 自身的 RpcEndpoint
       cores,
       memory,
       workerWebUiUrl,
@@ -411,6 +419,7 @@ private[deploy] class Worker(
         changeMaster(masterRef, masterWebUiUrl, masterAddress)
         forwordMessageScheduler.scheduleAtFixedRate(new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
+            // 自己给自己发送心跳
             self.send(SendHeartbeat)
           }
         }, 0, HEARTBEAT_MILLIS, TimeUnit.MILLISECONDS)
@@ -792,6 +801,7 @@ private[deploy] object Worker extends Logging {
     rpcEnv.awaitTermination()
   }
 
+  // 启动，多个参数进行注册和启动
   def startRpcEnvAndEndpoint(
       host: String,
       port: Int,

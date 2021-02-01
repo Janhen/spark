@@ -44,6 +44,10 @@ import org.apache.spark.storage._
 import org.apache.spark.util.{RpcUtils, Utils}
 
 /**
+ * 度量系统
+ * 内存管理
+ * 安全管理
+ *
  * :: DeveloperApi ::
  * Holds all the runtime environment objects for a running Spark instance (either master or worker),
  * including the serializer, RpcEnv, block manager, map output tracker, etc. Currently
@@ -56,17 +60,17 @@ import org.apache.spark.util.{RpcUtils, Utils}
 @DeveloperApi
 class SparkEnv (
     val executorId: String,
-    private[spark] val rpcEnv: RpcEnv,
+    private[spark] val rpcEnv: RpcEnv,  // !通信使用
     val serializer: Serializer,
     val closureSerializer: Serializer,
-    val serializerManager: SerializerManager,
-    val mapOutputTracker: MapOutputTracker,
-    val shuffleManager: ShuffleManager,
-    val broadcastManager: BroadcastManager,
-    val blockManager: BlockManager,
+    val serializerManager: SerializerManager,  // 序列化管理，数据的交换
+    val mapOutputTracker: MapOutputTracker,    // !跟踪 Map 的输出任务
+    val shuffleManager: ShuffleManager,        // !Shuffle 过程中产生的文件?
+    val broadcastManager: BroadcastManager,    // 管理广播变量
+    val blockManager: BlockManager,            // !管理数据
     val securityManager: SecurityManager,
-    val metricsSystem: MetricsSystem,
-    val memoryManager: MemoryManager,
+    val metricsSystem: MetricsSystem,          // 内置的度量系统
+    val memoryManager: MemoryManager,          // !内存管理器
     val outputCommitCoordinator: OutputCommitCoordinator,
     val conf: SparkConf) extends Logging {
 

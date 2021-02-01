@@ -234,6 +234,15 @@
   </properties>
   <repositories>
     <repository>
+      <id>nexus-aliyun</id>
+      <name>Nexus aliyun</name>
+      <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+      <releases>
+        <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
+      </releases>
+    </repository>
+    <repository>
       <id>gcs-maven-central-mirror</id>
       <!--
         Google Mirror of Maven Central, placed first so that it's used instead of flaky Maven Central.
@@ -243,6 +252,7 @@
       <url>https://maven-central.storage-download.googleapis.com/maven2/</url>
       <releases>
         <enabled>true</enabled>
+        <updatePolicy>always</updatePolicy>
       </releases>
       <snapshots>
         <enabled>false</enabled>
