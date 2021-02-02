@@ -47,6 +47,10 @@ import org.apache.spark.storage.BlockManagerMessages.BlockManagerHeartbeat
 import org.apache.spark.util._
 
 /**
+ *
+ * [[submitMissingTasks(org.apache.spark.scheduler.Stage, int)]]
+ * [[submitStage]]
+ *
  * The high-level scheduling layer that implements stage-oriented scheduling. It computes a DAG of
  * stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a
  * minimal schedule to run the job. It then submits stages as TaskSets to an underlying
@@ -351,6 +355,8 @@ private[spark] class DAGScheduler(
   }
 
   /**
+   * 父 Stage 没有创建则先创建
+   *
    * Gets a shuffle map stage if one exists in shuffleIdToMapStage. Otherwise, if the
    * shuffle map stage doesn't already exist, this method will create the shuffle map stage in
    * addition to any missing ancestor shuffle map stages.
@@ -467,7 +473,9 @@ private[spark] class DAGScheduler(
     checkBarrierStageWithDynamicAllocation(rdd)
     checkBarrierStageWithNumSlots(rdd)
     checkBarrierStageWithRDDChainPattern(rdd, partitions.toSet.size)
+    // 获取所有的 Stage, 根据宽依赖找
     val parents = getOrCreateParentStages(rdd, jobId)
+    // 生成
     val id = nextStageId.getAndIncrement()
     val stage = new ResultStage(id, rdd, func, partitions, parents, jobId, callSite)
     stageIdToStage(id) = stage
@@ -476,6 +484,8 @@ private[spark] class DAGScheduler(
   }
 
   /**
+   * 找到宽依赖的
+   *
    * Get or create the list of parent stages for a given RDD.  The new Stages will be created with
    * the provided firstJobId.
    */
@@ -568,14 +578,18 @@ private[spark] class DAGScheduler(
     true
   }
 
+  // 获取 Stage 中未提交的父 Stage
   private def getMissingParentStages(stage: Stage): List[Stage] = {
     val missing = new HashSet[Stage]
+    // 深度优先搜索
     val visited = new HashSet[RDD[_]]
     // We are manually maintaining a stack here to prevent StackOverflowError
     // caused by recursively visiting
     val waitingForVisit = new ArrayStack[RDD[_]]
+    // 定义方法
     def visit(rdd: RDD[_]) {
       if (!visited(rdd)) {
+        // 记录访问过
         visited += rdd
         val rddHasUncachedPartitions = getCacheLocs(rdd).contains(Nil)
         if (rddHasUncachedPartitions) {
@@ -679,6 +693,9 @@ private[spark] class DAGScheduler(
   }
 
   /**
+   *
+   * 串行提交
+   *
    * Submit an action job to the scheduler.
    *
    * @param rdd target RDD to run tasks on
@@ -701,8 +718,10 @@ private[spark] class DAGScheduler(
       callSite: CallSite,
       resultHandler: (Int, U) => Unit,
       properties: Properties): JobWaiter[U] = {
+    // 获取当前最大的分区数
     // Check to make sure we are not launching a task on a partition that does not exist.
     val maxPartitions = rdd.partitions.length
+    // 检查不存在的分区，并抛出异常
     partitions.find(p => p >= maxPartitions || p < 0).foreach { p =>
       throw new IllegalArgumentException(
         "Attempting to access a non-existent partition: " + p + ". " +
@@ -710,6 +729,7 @@ private[spark] class DAGScheduler(
     }
 
     val jobId = nextJobId.getAndIncrement()
+    // 没有数据，直接返回
     if (partitions.size == 0) {
       // Return immediately if the job is running 0 tasks
       return new JobWaiter[U](this, jobId, 0, resultHandler)
@@ -718,6 +738,7 @@ private[spark] class DAGScheduler(
     assert(partitions.size > 0)
     val func2 = func.asInstanceOf[(TaskContext, Iterator[_]) => _]
     val waiter = new JobWaiter(this, jobId, partitions.size, resultHandler)
+    // 发送消息
     eventProcessLoop.post(JobSubmitted(
       jobId, rdd, func2, partitions.toArray, callSite, waiter,
       SerializationUtils.clone(properties)))
@@ -746,9 +767,12 @@ private[spark] class DAGScheduler(
       resultHandler: (Int, U) => Unit,
       properties: Properties): Unit = {
     val start = System.nanoTime
+    // !作业提交，此处为串行提交
     val waiter = submitJob(rdd, func, partitions, callSite, resultHandler, properties)
+    // 等待
     ThreadUtils.awaitReady(waiter.completionFuture, Duration.Inf)
     waiter.completionFuture.value.get match {
+        // 成功的处理，经过一定的重试的
       case scala.util.Success(_) =>
         logInfo("Job %d finished: %s, took %f s".format
           (waiter.jobId, callSite.shortForm, (System.nanoTime - start) / 1e9))
@@ -970,6 +994,7 @@ private[spark] class DAGScheduler(
     listenerBus.post(SparkListenerTaskGettingResult(taskInfo))
   }
 
+  // 处理提交的消息
   private[scheduler] def handleJobSubmitted(jobId: Int,
       finalRDD: RDD[_],
       func: (TaskContext, Iterator[_]) => _,
@@ -979,6 +1004,7 @@ private[spark] class DAGScheduler(
       properties: Properties) {
     var finalStage: ResultStage = null
     try {
+      // !创建一个 ResultStage
       // New stage creation may throw an exception if, for example, jobs are run on a
       // HadoopRDD whose underlying HDFS files have been deleted.
       finalStage = createResultStage(finalRDD, func, partitions, jobId, callSite)
@@ -1032,6 +1058,7 @@ private[spark] class DAGScheduler(
     val stageInfos = stageIds.flatMap(id => stageIdToStage.get(id).map(_.latestInfo))
     listenerBus.post(
       SparkListenerJobStart(job.jobId, jobSubmissionTime, stageInfos, properties))
+    // !提交 Stage
     submitStage(finalStage)
   }
 
@@ -1089,6 +1116,7 @@ private[spark] class DAGScheduler(
         logDebug("missing: " + missing)
         if (missing.isEmpty) {
           logInfo("Submitting " + stage + " (" + stage.rdd + "), which has no missing parents")
+          // 找父的，在进行提交
           submitMissingTasks(stage, jobId.get)
         } else {
           for (parent <- missing) {
@@ -1152,8 +1180,10 @@ private[spark] class DAGScheduler(
     if (partitionsToCompute.nonEmpty) {
       stage.latestInfo.submissionTime = Some(clock.getTimeMillis())
     }
+    // 向事件总线投递 SparkListenerStageSub 消息
     listenerBus.post(SparkListenerStageSubmitted(stage.latestInfo, properties))
 
+    // 序列化，放入的是二进制数组，通过广播变量进行广播出去...
     // TODO: Maybe we can keep the taskBinary in Stage to avoid serializing it multiple times.
     // Broadcasted binary for the task, used to dispatch tasks to executors. Note that we broadcast
     // the serialized copy of the RDD and for each task we will deserialize it, which means each
@@ -1183,6 +1213,7 @@ private[spark] class DAGScheduler(
 
       taskBinary = sc.broadcast(taskBinaryBytes)
     } catch {
+            // 任务序列化失败的日志打印
       // In the case of a failure during serialization, abort the stage.
       case e: NotSerializableException =>
         abortStage(stage, "Task not serializable: " + e.toString, Some(e))
@@ -1198,6 +1229,7 @@ private[spark] class DAGScheduler(
         return
     }
 
+    // 根据不同的 Stage 进行处理
     val tasks: Seq[Task[_]] = try {
       val serializedTaskMetrics = closureSerializer.serialize(stage.latestInfo.taskMetrics).array()
       stage match {
@@ -1233,6 +1265,7 @@ private[spark] class DAGScheduler(
     if (tasks.size > 0) {
       logInfo(s"Submitting ${tasks.size} missing tasks from $stage (${stage.rdd}) (first 15 " +
         s"tasks are for partitions ${tasks.take(15).map(_.partitionId)})")
+      // 通过 TaskScheduler 进行 Task 的提交
       taskScheduler.submitTasks(new TaskSet(
         tasks.toArray, stage.id, stage.latestInfo.attemptNumber, jobId, properties))
     } else {
@@ -2087,6 +2120,8 @@ private[scheduler] class DAGSchedulerEventProcessLoop(dagScheduler: DAGScheduler
   private[this] val timer = dagScheduler.metricsSource.messageProcessingTimer
 
   /**
+   * 处理各种消息
+   *
    * The main event loop of the DAG scheduler.
    */
   override def onReceive(event: DAGSchedulerEvent): Unit = {

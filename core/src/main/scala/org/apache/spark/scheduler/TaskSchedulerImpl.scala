@@ -179,12 +179,16 @@ private[spark] class TaskSchedulerImpl(
           s"$schedulingMode")
       }
     }
+    // 根据参数创建资源池
     schedulableBuilder.buildPools()
   }
 
   def newTaskId(): Long = nextTaskId.getAndIncrement()
 
+
+  // 启动
   override def start() {
+    // SchedulerBackend 初始化
     backend.start()
 
     if (!isLocal && conf.getBoolean("spark.speculation", false)) {
@@ -201,6 +205,9 @@ private[spark] class TaskSchedulerImpl(
     waitBackendReady()
   }
 
+  /**
+   * 提交 TaskSet
+   */
   override def submitTasks(taskSet: TaskSet) {
     val tasks = taskSet.tasks
     logInfo("Adding task set " + taskSet.id + " with " + tasks.length + " tasks")
@@ -228,6 +235,7 @@ private[spark] class TaskSchedulerImpl(
       if (!isLocal && !hasReceivedTask) {
         starvationTimer.scheduleAtFixedRate(new TimerTask() {
           override def run() {
+            // 可能是资源不够或是 worker 没有注册上去
             if (!hasLaunchedTask) {
               logWarning("Initial job has not accepted any resources; " +
                 "check your cluster UI to ensure that workers are registered " +
@@ -240,6 +248,7 @@ private[spark] class TaskSchedulerImpl(
       }
       hasReceivedTask = true
     }
+    // SchedulerBackend 进行 ...
     backend.reviveOffers()
   }
 

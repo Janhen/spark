@@ -20,6 +20,8 @@ package org.apache.spark.scheduler
 import java.util.Properties
 
 /**
+ * 记录 Task
+ *
  * A set of tasks submitted together to the low-level TaskScheduler, usually representing
  * missing partitions of a particular stage.
  */

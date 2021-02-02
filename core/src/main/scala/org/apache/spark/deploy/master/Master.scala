@@ -313,6 +313,7 @@ private[deploy] class Master(
         }
       }
 
+      // 注册应用
     case RegisterApplication(description, driver) =>
       // TODO Prevent repeated registrations from some driver
       if (state == RecoveryState.STANDBY) {
@@ -322,8 +323,10 @@ private[deploy] class Master(
         val app = createApplication(description, driver)
         registerApplication(app)
         logInfo("Registered app " + description.name + " with ID " + app.id)
+        // 将 app 的信息持久化，可用于恢复
         persistenceEngine.addApplication(app)
         driver.send(RegisteredApplication(app.id, self))
+        // 相应的去调度
         schedule()
       }
 

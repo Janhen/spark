@@ -33,6 +33,7 @@ import org.apache.spark.util.{ShutdownHookManager, Utils}
 import org.apache.spark.util.logging.FileAppender
 
 /**
+ *
  * Manages the execution of one executor process.
  * This is currently only used in standalone mode.
  */

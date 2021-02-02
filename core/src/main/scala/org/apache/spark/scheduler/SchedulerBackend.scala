@@ -18,6 +18,12 @@
 package org.apache.spark.scheduler
 
 /**
+ * 多个实现类
+ *
+ * [[org.apache.spark.scheduler.cluster.StandaloneSchedulerBackend]]
+ * LocalSchedulerBackend
+ * [[org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend]]
+ *
  * A backend interface for scheduling systems that allows plugging in different ones under
  * TaskSchedulerImpl. We assume a Mesos-like model where the application gets resource offers as
  * machines become available and can launch tasks on them.

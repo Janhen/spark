@@ -33,6 +33,8 @@ import org.apache.spark.util.{AccumulatorV2, Clock, LongAccumulator, SystemClock
 import org.apache.spark.util.collection.MedianHeap
 
 /**
+ * 封装了 Task
+ *
  * Schedules the tasks within a single TaskSet in the TaskSchedulerImpl. This class keeps track of
  * each task, retries tasks if they fail (up to a limited number of times), and
  * handles locality-aware scheduling for this TaskSet via delay scheduling. The main interfaces
@@ -1062,11 +1064,15 @@ private[spark] class TaskSetManager(
   }
 
   /**
+   *
+   * !数据本地性计算
+   *
    * Compute the locality levels used in this TaskSet. Assumes that all tasks have already been
    * added to queues using addPendingTask.
    *
    */
   private def computeValidLocalityLevels(): Array[TaskLocality.TaskLocality] = {
+    // !数据在内存中 --> 数据在本地磁盘 --> 数据在机架上 --> 数据在网络上
     import TaskLocality.{PROCESS_LOCAL, NODE_LOCAL, NO_PREF, RACK_LOCAL, ANY}
     val levels = new ArrayBuffer[TaskLocality.TaskLocality]
     if (!pendingTasksForExecutor.isEmpty &&

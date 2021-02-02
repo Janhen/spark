@@ -22,6 +22,9 @@ import org.apache.spark.storage.BlockManagerId
 import org.apache.spark.util.AccumulatorV2
 
 /**
+ * 接口
+ * 只有一个实现
+ *
  * Low-level task scheduler interface, currently implemented exclusively by
  * [[org.apache.spark.scheduler.TaskSchedulerImpl]].
  * This interface allows plugging in different task schedulers. Each TaskScheduler schedules tasks

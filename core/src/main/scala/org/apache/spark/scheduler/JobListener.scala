@@ -23,6 +23,8 @@ package org.apache.spark.scheduler
  * job fails (and no further taskSucceeded events will happen).
  */
 private[spark] trait JobListener {
+  // 执行成功后调用
   def taskSucceeded(index: Int, result: Any): Unit
+  // 执行失败后调用
   def jobFailed(exception: Exception): Unit
 }

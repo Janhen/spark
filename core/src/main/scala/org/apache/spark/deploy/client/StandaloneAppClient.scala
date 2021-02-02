@@ -83,6 +83,7 @@ private[spark] class StandaloneAppClient(
 
     override def onStart(): Unit = {
       try {
+        // Worker 启动向 Master 去注册
         registerWithMaster(1)
       } catch {
         case e: Exception =>
@@ -93,6 +94,8 @@ private[spark] class StandaloneAppClient(
     }
 
     /**
+     * 向所有的 Master 进行注册
+     *
      *  Register with all masters asynchronously and returns an array `Future`s for cancellation.
      */
     private def tryRegisterAllMasters(): Array[JFuture[_]] = {

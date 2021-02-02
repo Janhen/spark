@@ -29,6 +29,8 @@ import org.apache.spark.scheduler.SchedulingMode.SchedulingMode
 import org.apache.spark.util.Utils
 
 /**
+ * 调度celve
+ *
  * An interface to build Schedulable tree
  * buildPools: build the tree nodes(pools)
  * addTaskSetManager: build the leaf nodes(TaskSetManagers)
@@ -41,6 +43,9 @@ private[spark] trait SchedulableBuilder {
   def addTaskSetManager(manager: Schedulable, properties: Properties): Unit
 }
 
+/**
+ * FIFO 调度
+ */
 private[spark] class FIFOSchedulableBuilder(val rootPool: Pool)
   extends SchedulableBuilder with Logging {
 
@@ -53,6 +58,11 @@ private[spark] class FIFOSchedulableBuilder(val rootPool: Pool)
   }
 }
 
+/**
+ * 公平调度
+ *
+ * 多个属性进行判断
+ */
 private[spark] class FairSchedulableBuilder(val rootPool: Pool, conf: SparkConf)
   extends SchedulableBuilder with Logging {
 

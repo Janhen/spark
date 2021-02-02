@@ -33,6 +33,7 @@ import org.apache.spark.internal.Logging
  */
 private[spark] abstract class EventLoop[E](name: String) extends Logging {
 
+  // 阻塞队列
   private val eventQueue: BlockingQueue[E] = new LinkedBlockingDeque[E]()
 
   private val stopped = new AtomicBoolean(false)

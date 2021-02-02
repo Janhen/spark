@@ -61,6 +61,10 @@ import org.apache.spark.ui.{ConsoleProgressBar, SparkUI}
 import org.apache.spark.util._
 
 /**
+ *
+ * [[runJob(org.apache.spark.rdd.RDD, scala.Function2, scala.collection.Seq, scala.reflect.ClassTag)]]
+ *
+ * [[createTaskScheduler(org.apache.spark.SparkContext, java.lang.String, java.lang.String)]]
  * Main entry point for Spark functionality. A SparkContext represents the connection to a Spark
  * cluster, and can be used to create RDDs, accumulators and broadcast variables on that cluster.
  *
@@ -75,10 +79,13 @@ class SparkContext(config: SparkConf) extends Logging {
   // The call site where this SparkContext was constructed.
   private val creationSite: CallSite = Utils.getCallSite()
 
+
+  // 缺省的情况下只允许有一个
   // If true, log warnings instead of throwing exceptions when multiple SparkContexts are active
   private val allowMultipleContexts: Boolean =
     config.getBoolean("spark.driver.allowMultipleContexts", false)
 
+  // 有多个的时候警告
   // In order to prevent multiple SparkContexts from being active at the same time, mark this
   // context as having started construction.
   // NOTE: this must be placed at the beginning of the SparkContext constructor.
@@ -127,6 +134,7 @@ class SparkContext(config: SparkConf) extends Logging {
     this(SparkContext.updatedConf(conf, master, appName))
 
   /**
+   *
    * Alternative constructor that allows setting common Spark properties directly
    *
    * @param master Cluster URL to connect to (e.g. mesos://host:port, spark://host:port, local[4]).
@@ -368,6 +376,7 @@ class SparkContext(config: SparkConf) extends Logging {
     Utils.setLogLevel(org.apache.log4j.Level.toLevel(upperCased))
   }
 
+  // 初始化
   try {
     _conf = config.clone()
     _conf.validateSettings()
@@ -403,6 +412,7 @@ class SparkContext(config: SparkConf) extends Logging {
     _files = _conf.getOption("spark.files").map(_.split(",")).map(_.filter(_.nonEmpty))
       .toSeq.flatten
 
+    // 日志聚合
     _eventLogDir =
       if (isEventLogEnabled) {
         val unresolvedDir = conf.get("spark.eventLog.dir", EventLoggingListener.DEFAULT_LOG_DIR)
@@ -412,6 +422,7 @@ class SparkContext(config: SparkConf) extends Logging {
         None
       }
 
+    // 日志是否需要压缩
     _eventLogCodec = {
       val compress = _conf.getBoolean("spark.eventLog.compress", false)
       if (compress && isEventLogEnabled) {
@@ -440,6 +451,7 @@ class SparkContext(config: SparkConf) extends Logging {
 
     _statusTracker = new SparkStatusTracker(this, _statusStore)
 
+    // 进度条
     _progressBar =
       if (_conf.get(UI_SHOW_CONSOLE_PROGRESS) && !log.isInfoEnabled) {
         Some(new ConsoleProgressBar(this))
@@ -447,6 +459,7 @@ class SparkContext(config: SparkConf) extends Logging {
         None
       }
 
+    // 创建 WebUI
     _ui =
       if (conf.getBoolean("spark.ui.enabled", true)) {
         Some(SparkUI.create(Some(this), _statusStore, _conf, _env.securityManager, appName, "",
@@ -459,8 +472,10 @@ class SparkContext(config: SparkConf) extends Logging {
     // the bound port to the cluster manager properly
     _ui.foreach(_.bind())
 
+    // 读取 Hadoop 的参数
     _hadoopConfiguration = SparkHadoopUtil.get.newConfiguration(_conf)
 
+    // 添加  jar
     // Add each JAR given through the constructor
     if (jars != null) {
       jars.foreach(addJar)
@@ -470,6 +485,7 @@ class SparkContext(config: SparkConf) extends Logging {
       files.foreach(addFile)
     }
 
+    // 设定 executor 的内存参数
     _executorMemory = _conf.getOption("spark.executor.memory")
       .orElse(Option(System.getenv("SPARK_EXECUTOR_MEMORY")))
       .orElse(Option(System.getenv("SPARK_MEM"))
@@ -477,6 +493,7 @@ class SparkContext(config: SparkConf) extends Logging {
       .map(Utils.memoryStringToMb)
       .getOrElse(1024)
 
+    // 设置测试信息
     // Convert java options to env vars as a work around
     // since we can't set env vars directly in sbt.
     for { (envKey, propKey) <- Seq(("SPARK_TESTING", "spark.testing"))
@@ -492,6 +509,7 @@ class SparkContext(config: SparkConf) extends Logging {
     executorEnvs ++= _conf.getExecutorEnv
     executorEnvs("SPARK_USER") = sparkUser
 
+    // 注册心跳
     // We need to register "HeartbeatReceiver" before "createTaskScheduler" because Executor will
     // retrieve "HeartbeatReceiver" in the constructor. (SPARK-6640)
     _heartbeatReceiver = env.rpcEnv.setupEndpoint(
@@ -501,9 +519,12 @@ class SparkContext(config: SparkConf) extends Logging {
     val (sched, ts) = SparkContext.createTaskScheduler(this, master, deployMode)
     _schedulerBackend = sched
     _taskScheduler = ts
+    // 创建 DAGScheduler
     _dagScheduler = new DAGScheduler(this)
+    // 自己给自己发送消息, 表示 TaskSchedule 已经启动了
     _heartbeatReceiver.ask[Boolean](TaskSchedulerIsSet)
 
+    // 进行 taskScheduler 进行初始化
     // start TaskScheduler after taskScheduler sets DAGScheduler reference in DAGScheduler's
     // constructor
     _taskScheduler.start()
@@ -517,12 +538,19 @@ class SparkContext(config: SparkConf) extends Logging {
     _ui.foreach(_.setAppId(_applicationId))
     _env.blockManager.initialize(_applicationId)
 
+    // !测量系统启动
+    // 注册 Sources
+    // 注册 Sinks
+    // 将Sinks增加 Jetty 的ServletContextHandler
+    // MetricsSystem启动完毕后，会遍历与Sinks有关的 ServletContextHandler，并
+    // 调用 attachHandler将它们绑定到Spark UI上
     // The metrics system for Driver need to be set spark.app.id to app ID.
     // So it should start after we get app ID from the task scheduler and set spark.app.id.
     _env.metricsSystem.start()
     // Attach the driver metrics servlet handler to the web ui after the metrics system is started.
     _env.metricsSystem.getServletHandlers.foreach(handler => ui.foreach(_.attachHandler(handler)))
 
+    // 创建时间日志监听器
     _eventLogger =
       if (isEventLogEnabled) {
         val logger =
@@ -535,6 +563,7 @@ class SparkContext(config: SparkConf) extends Logging {
         None
       }
 
+    // 资源的动态分配，  Standard 与 Yarn 都只有粗粒度的资源管理， Mesos 有细粒度的 。。
     // Optionally scale number of executors dynamically based on workload. Exposed for testing.
     val dynamicAllocationEnabled = Utils.isDynamicAllocationEnabled(_conf)
     _executorAllocationManager =
@@ -560,13 +589,18 @@ class SparkContext(config: SparkConf) extends Logging {
       }
     _cleaner.foreach(_.start())
 
+    // 组件与组件之间的消息交换
     setupAndStartListenerBus()
+    // 环境更新，从命令行。。。 处获取的配置
     postEnvironmentUpdate()
+    // 应用启动
     postApplicationStart()
 
     // Post init
     _taskScheduler.postStartHook()
+    // 测量系统，注册数据源，从 DAG 中采集
     _env.metricsSystem.registerSource(_dagScheduler.metricsSource)
+    // 磁盘相关信息的采集
     _env.metricsSystem.registerSource(new BlockManagerSource(_env.blockManager))
     _executorAllocationManager.foreach { e =>
       _env.metricsSystem.registerSource(e.executorAllocationManagerSource)
@@ -2066,8 +2100,10 @@ class SparkContext(config: SparkConf) extends Logging {
     if (conf.getBoolean("spark.logLineage", false)) {
       logInfo("RDD's recursive dependencies:\n" + rdd.toDebugString)
     }
+    // dag 进行调度
     dagScheduler.runJob(rdd, cleanedFunc, partitions, callSite, resultHandler, localProperties.get)
     progressBar.foreach(_.finishAll())
+    // rdd 做检查点
     rdd.doCheckpoint()
   }
 
@@ -2444,6 +2480,7 @@ class SparkContext(config: SparkConf) extends Logging {
 }
 
 /**
+ * [[org.apache.spark.SparkContext#createTaskScheduler]]
  * The SparkContext object contains a number of implicit conversions and parameters for use with
  * various Spark features.
  */
@@ -2718,6 +2755,10 @@ object SparkContext extends Logging {
   }
 
   /**
+   * 返回两个值
+   *
+   * 创建调度
+   *
    * Create a task scheduler based on a given master URL.
    * Return a 2-tuple of the scheduler backend and the task scheduler.
    */
@@ -2759,10 +2800,12 @@ object SparkContext extends Logging {
         scheduler.initialize(backend)
         (backend, scheduler)
 
+        //
       case SPARK_REGEX(sparkUrl) =>
         val scheduler = new TaskSchedulerImpl(sc)
         val masterUrls = sparkUrl.split(",").map("spark://" + _)
         val backend = new StandaloneSchedulerBackend(scheduler, sc, masterUrls)
+        // 任务初始化
         scheduler.initialize(backend)
         (backend, scheduler)
 
