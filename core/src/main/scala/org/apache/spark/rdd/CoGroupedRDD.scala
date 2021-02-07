@@ -96,8 +96,11 @@ class CoGroupedRDD[K: ClassTag](
     this
   }
 
+  // CoGroupRdd 获取依赖的方法
   override def getDependencies: Seq[Dependency[_]] = {
     rdds.map { rdd: RDD[_] =>
+      // 判断 join 左右的 rdd 是否和上面选择的默认分区器分区数一致
+      // 如果一致则是窄依赖, 否则就是宽依赖
       if (rdd.partitioner == Some(part)) {
         logDebug("Adding one-to-one dependency with " + rdd)
         new OneToOneDependency(rdd)

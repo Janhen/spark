@@ -25,6 +25,8 @@ import org.apache.spark.memory.MemoryMode
 import org.apache.spark.util.Utils
 
 /**
+ * 存储级别
+ *
  * :: DeveloperApi ::
  * Flags for controlling the storage of an RDD. Each StorageLevel records whether to use memory,
  * or ExternalBlockStore, whether to drop the RDD to disk if it falls out of memory or

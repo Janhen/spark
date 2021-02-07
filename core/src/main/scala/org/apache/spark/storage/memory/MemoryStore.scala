@@ -75,6 +75,10 @@ private[storage] trait BlockEvictionHandler {
 }
 
 /**
+ * 属于 BlockManager
+ *
+ * 数据块有多钟情况，在磁盘上、在内存中
+ *
  * Stores blocks in memory, either as Arrays of deserialized Java objects or as
  * serialized ByteBuffers.
  */

@@ -85,6 +85,7 @@ abstract class RDD[T: ClassTag](
     logWarning("Spark does not support nested RDDs (see SPARK-5063)")
   }
 
+  // 内部
   private def sc: SparkContext = {
     if (_sc == null) {
       throw new SparkException(
@@ -104,6 +105,7 @@ abstract class RDD[T: ClassTag](
   def this(@transient oneParent: RDD[_]) =
     this(oneParent.context, List(new OneToOneDependency(oneParent)))
 
+  // 配置
   private[spark] def conf = sc.conf
   // =======================================================================
   // Methods that should be implemented by subclasses of RDD
@@ -117,6 +119,8 @@ abstract class RDD[T: ClassTag](
   def compute(split: Partition, context: TaskContext): Iterator[T]
 
   /**
+   * 当前 RDD 的分区
+   *
    * Implemented by subclasses to return the set of partitions in this RDD. This method will only
    * be called once, so it is safe to implement a time-consuming computation in it.
    *
@@ -126,16 +130,21 @@ abstract class RDD[T: ClassTag](
   protected def getPartitions: Array[Partition]
 
   /**
+   * 当前 RDD 的依赖(血缘关系)
+   *
    * Implemented by subclasses to return how this RDD depends on parent RDDs. This method will only
    * be called once, so it is safe to implement a time-consuming computation in it.
    */
   protected def getDependencies: Seq[Dependency[_]] = deps
 
   /**
+   * 优先位置
+   *
    * Optionally overridden by subclasses to specify placement preferences.
    */
   protected def getPreferredLocations(split: Partition): Seq[String] = Nil
 
+  // 分区器，可在使用特定算子的时候指定
   /** Optionally overridden by subclasses to specify how they are partitioned. */
   @transient val partitioner: Option[Partitioner] = None
 
@@ -159,6 +168,10 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 按照指定的存储级别进行持久化
+   *
+   * 指定是否是覆盖持久化的
+   *
    * Mark this RDD for persisting using the specified level.
    *
    * @param newLevel the target storage level
@@ -202,6 +215,8 @@ abstract class RDD[T: ClassTag](
   def persist(): this.type = persist(StorageLevel.MEMORY_ONLY)
 
   /**
+   * 持久化，默认级别为 MEMORY_ONLY
+   *
    * Persist this RDD with the default storage level (`MEMORY_ONLY`).
    */
   def cache(): this.type = persist()
@@ -307,6 +322,7 @@ abstract class RDD[T: ClassTag](
     if (storageLevel != StorageLevel.NONE) {
       getOrCompute(split, context)
     } else {
+      // 从 检查点中获取?
       computeOrReadCheckpoint(split, context)
     }
   }
@@ -626,6 +642,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * union 的简化操作
+   *
    * Return the union of this RDD and another one. Any identical elements will appear multiple
    * times (use `.distinct()` to eliminate them).
    */
@@ -694,6 +712,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 计算笛卡尔积
+   *
    * Return the Cartesian product of this RDD and another one, that is, the RDD of all pairs of
    * elements (a, b) where a is in `this` and b is in `other`.
    */
@@ -702,6 +722,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 产生 shuffle，操作代价高
+   *
    * Return an RDD of grouped items. Each group consists of a key and a sequence of elements
    * mapping to that key. The ordering of elements within each group is not guaranteed, and
    * may even differ each time the resulting RDD is evaluated.
@@ -809,6 +831,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 操作性能比 map 好，分区中数据量大的情况下可能出现 OOM
+   *
    * Return a new RDD by applying a function to each partition of this RDD.
    *
    * `preservesPartitioning` indicates whether the input function preserves the partitioner, which
@@ -965,6 +989,8 @@ abstract class RDD[T: ClassTag](
   // Actions (launch a job to return a value to the user program)
 
   /**
+   * 执行的是在 Executor 中，若要在 Driver 端使用，先 collect 到 Driver 中，之后再去遍历?
+   *
    * Applies a function f to all elements of this RDD.
    */
   def foreach(f: T => Unit): Unit = withScope {
@@ -1083,6 +1109,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 多级的树结构进行 reduce
+   *
    * Reduces the elements of this RDD in a multi-level tree pattern.
    *
    * @param depth suggested depth of the tree (default: 2)
@@ -1145,6 +1173,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 函数柯里化
+   *
    * Aggregate the elements of each partition, and then the results for all the partitions, using
    * given combine functions and a neutral "zero value". This function can return a different result
    * type, U, than the type of this RDD, T. Thus, we need one operation for merging a T into an U
@@ -1243,6 +1273,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 比较 count, countByValue....
+   *
    * Return the count of each unique value in this RDD as a local map of (value, count) pairs.
    *
    * @note This method should only be used if the resulting map is expected to be small, as
@@ -1333,6 +1365,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 带有索引的拉链操作
+   *
    * Zips this RDD with its element indices. The ordering is first based on the partition index
    * and then the ordering of items within each partition. So the first item in the first
    * partition gets index 0, and the last item in the last partition receives the largest index.
@@ -1369,6 +1403,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 从左到右取出指定数量的元素
+   *
    * Take the first num elements of the RDD. It works by first scanning one partition, and use the
    * results from that partition to estimate the number of additional partitions needed to satisfy
    * the limit.
@@ -1427,6 +1463,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 隐式转换，找出最大的...
+   *
    * Returns the top k (largest) elements from this RDD as defined by the specified
    * implicit Ordering[T] and maintains the ordering. This does the opposite of
    * [[takeOrdered]]. For example:
@@ -1450,6 +1488,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   *
+   *
    * Returns the first k (smallest) elements from this RDD as defined by the specified
    * implicit Ordering[T] and maintains the ordering. This does the opposite of [[top]].
    * For example:
@@ -1518,6 +1558,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 持久化存储的算子
+   *
    * Save this RDD as a text file, using string representations of elements.
    */
   def saveAsTextFile(path: String): Unit = withScope {
@@ -1585,6 +1627,8 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * 检查点，截断 RDD 的依赖，保存到文件中，移除当前 RDD 所有的 parent RDD
+   *
    * Mark this RDD for checkpointing. It will be saved to a file inside the checkpoint
    * directory set with `SparkContext#setCheckpointDir` and all references to its parent
    * RDDs will be removed. This function must be called before any job has been
@@ -1913,6 +1957,7 @@ abstract class RDD[T: ClassTag](
   override def toString: String = "%s%s[%d] at %s".format(
     Option(name).map(_ + " ").getOrElse(""), getClass.getSimpleName, id, getCreationSite)
 
+  // 与 JAVA Rdd 的转换
   def toJavaRDD() : JavaRDD[T] = {
     new JavaRDD(this)(elementClassTag)
   }
@@ -1996,6 +2041,10 @@ abstract class RDD[T: ClassTag](
 
 
 /**
+ * RDD 的伴生对象
+ *
+ * 定义一些隐式转换
+ *
  * Defines implicit functions that provide extra functionalities on RDDs of specific types.
  *
  * For example, [[RDD.rddToPairRDDFunctions]] converts an RDD into a [[PairRDDFunctions]] for

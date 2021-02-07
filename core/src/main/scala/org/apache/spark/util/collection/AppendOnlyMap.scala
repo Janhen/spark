@@ -24,6 +24,12 @@ import com.google.common.hash.Hashing
 import org.apache.spark.annotation.DeveloperApi
 
 /**
+ * 用于追加方式的优化
+ *
+ * 在 Shuffle 过程中使用
+ *
+ * key 不会被移除，值会改变
+ *
  * :: DeveloperApi ::
  * A simple open hash table optimized for the append-only use case, where keys
  * are never removed, but the value for each key may be changed.

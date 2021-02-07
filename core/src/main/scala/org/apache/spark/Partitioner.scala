@@ -64,20 +64,26 @@ object Partitioner {
    */
   def defaultPartitioner(rdd: RDD[_], others: RDD[_]*): Partitioner = {
     val rdds = (Seq(rdd) ++ others)
+    // 找传入的 RDD 是否有分区器
     val hasPartitioner = rdds.filter(_.partitioner.exists(_.numPartitions > 0))
 
+    // 有分区器则找最大的分区数对应的分区器
     val hasMaxPartitioner: Option[RDD[_]] = if (hasPartitioner.nonEmpty) {
       Some(hasPartitioner.maxBy(_.partitions.length))
     } else {
       None
     }
 
+    // 判断参数 spark.default.parallelism， 如果设置了则默认取spark.default.parallelism
     val defaultNumPartitions = if (rdd.context.conf.contains("spark.default.parallelism")) {
       rdd.context.defaultParallelism
     } else {
       rdds.map(_.partitions.length).max
     }
 
+    // 判断传入 rdd 是否是合法的/设置的分区器分区数大于默认的分区数
+    // - 满足, 使用 rdd 最大的分区数
+    // - 不满足, 使用默认的分区器
     // If the existing max partitioner is an eligible one, or its partitions number is larger
     // than the default number of partitions, use the existing partitioner.
     if (hasMaxPartitioner.nonEmpty && (isEligiblePartitioner(hasMaxPartitioner.get, rdds) ||
